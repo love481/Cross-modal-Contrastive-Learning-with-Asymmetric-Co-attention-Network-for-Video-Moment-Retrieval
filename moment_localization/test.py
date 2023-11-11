@@ -16,7 +16,7 @@ from core.utils import AverageMeter
 from core.config import config, update_config
 from core.eval import eval_predictions, display_results
 import models.loss as loss
-
+from core import eval
 torch.manual_seed(0)
 torch.cuda.manual_seed(0)
 
@@ -98,8 +98,8 @@ if __name__ == '__main__':
         word_mask = sample['batch_word_mask'].cuda()
         gt_times = sample['batch_gt_times'].cuda()
 
-        logits_text, logits_visual, logits_iou, iou_mask_map = model(textual_input, textual_mask, word_mask, visual_input)
-        loss_value, joint_prob, iou_scores, regress = getattr(loss, config.LOSS.NAME)(config.LOSS.PARAMS, logits_text, logits_visual, logits_iou, iou_mask_map, map_gt, gt_times, word_label, word_mask)
+        logits_text, logits_visual, logits_iou, iou_mask_map,loss_itc = model(textual_input, textual_mask, word_mask, visual_input, anno_idxs,gt_times)
+        loss_value, joint_prob, iou_scores, regress = getattr(loss, config.LOSS.NAME)(config.LOSS.PARAMS, logits_text, logits_visual, logits_iou, iou_mask_map, map_gt, gt_times, word_label, word_mask,loss_itc)
 
         sorted_times = None if model.training else get_proposal_results(iou_scores, regress, duration)
 
@@ -124,7 +124,13 @@ if __name__ == '__main__':
 
     def on_test_start(state):
         state['loss_meter'] = AverageMeter()
-        state['sorted_segments_list'] = []
+        tious = [float(i) for i in config.TEST.TIOU.split(',')] if isinstance(config.TEST.TIOU,str) else [config.TEST.TIOU]
+        recalls = [int(i) for i in config.TEST.RECALL.split(',')] if isinstance(config.TEST.RECALL,str) else [config.TEST.RECALL]
+        #state['sorted_segments_list'] = []
+        state['Rank@N,mIoU@M']=np.zeros((len(tious),len(recalls)))
+        state['count'] = 0
+        state['miou'] = 0
+        state['annotations'] = state['iterator'].dataset.annotations
         state['output'] = []
         if config.VERBOSE:
             state['progress_bar'] = tqdm(total=math.ceil(len(test_dataset)/config.TRAIN.BATCH_SIZE))
@@ -136,17 +142,20 @@ if __name__ == '__main__':
 
         min_idx = min(state['sample']['batch_anno_idxs']) ##find idx for each data in batches
         batch_indexs = [idx - min_idx for idx in state['sample']['batch_anno_idxs']]
-        sorted_segments = [state['output'][i] for i in batch_indexs] ## i think mistake
-        state['sorted_segments_list'].extend(sorted_segments) 
+        sorted_segments = [state['output'][i] for i in batch_indexs]
+        time_segments=[state['annotations'][idx] for idx in state['sample']['batch_anno_idxs']]
+        rankNM, mIou = eval.eval_predictions(sorted_segments,time_segments,verbose=False)
+        state['Rank@N,mIoU@M']+=rankNM
+        state['miou']+=mIou
+        state['count']+=1
 
     def on_test_end(state):
         if config.VERBOSE:
             state['progress_bar'].close()
             print()
 
-        annotations = test_dataset.annotations
-        state['Rank@N,mIoU@M'], state['miou'] = eval_predictions(state['sorted_segments_list'], annotations, verbose=True)
-
+        state['Rank@N,mIoU@M']/=state['count']
+        state['miou']/=state['count']
         loss_message = '\ntest loss {:.4f}'.format(state['loss_meter'].avg)
         print(loss_message)
         state['loss_meter'].reset()

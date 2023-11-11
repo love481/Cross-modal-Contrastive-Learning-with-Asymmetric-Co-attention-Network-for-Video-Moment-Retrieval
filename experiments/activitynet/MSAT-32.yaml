@@ -15,12 +15,12 @@ DATASET:
   RANDOM_SAMPLING: False
 
 TEST:
-  BATCH_SIZE: 64
+  BATCH_SIZE: 32
   RECALL: 1,5
   TIOU: 0.3,0.5,0.7
   EVAL_TRAIN: False
   NMS_THRESH: 0.51
-  INTERVAL: 15.0
+  INTERVAL: 0.25
 
 CUDNN:
   DETERMINISTIC: False
@@ -80,4 +80,4 @@ TAN:
 
 MODEL:
   NAME: TAN
-  CHECKPOINT: ./checkpoints/ActivityNet/TAN_c3d/iter023385-0.6144-0.8593.pkl
+  CHECKPOINT: ./checkpoints/ActivityNet/TAN_c3d/iter011972-0.6233-0.8605.pkl
