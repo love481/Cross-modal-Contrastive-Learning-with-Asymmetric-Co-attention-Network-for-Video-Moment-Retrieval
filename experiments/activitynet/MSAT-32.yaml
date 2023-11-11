@@ -1,0 +1,83 @@
+WORKERS: 4
+
+MODEL_DIR: ./checkpoints
+RESULT_DIR: ./results
+LOG_DIR: ./log
+DATA_DIR: ./data/ActivityNet
+
+DATASET:
+  NAME: ActivityNet
+  VIS_INPUT_TYPE: c3d
+  NO_VAL: True
+  NUM_SAMPLE_CLIPS: 256
+  TARGET_STRIDE: 8
+  NORMALIZE: True
+  RANDOM_SAMPLING: False
+
+TEST:
+  BATCH_SIZE: 64
+  RECALL: 1,5
+  TIOU: 0.3,0.5,0.7
+  EVAL_TRAIN: False
+  NMS_THRESH: 0.51
+  INTERVAL: 15.0
+
+CUDNN:
+  DETERMINISTIC: False
+  BENCHMARK: True
+
+TRAIN:
+  BATCH_SIZE: 64
+  LR: 0.0001
+  WEIGHT_DECAY: 0.00
+  MAX_EPOCH: 51
+  CONTINUE: False
+
+LOSS:
+  NAME: bce_rescale_loss
+  PARAMS:
+    W1: 0.5
+    W2: 0.5
+    W3: 10.0
+    W4: 0.25
+    W5: 0.25
+
+TAN:
+  FRAME_MODULE:
+    NAME: FrameAvgPool
+    PARAMS:
+      INPUT_SIZE: 500
+      HIDDEN_SIZE: 512
+      KERNEL_SIZE: 8
+      STRIDE: 8
+
+  VL_MODULE:
+    NAME: mPLUG
+    PARAMS:
+      stride_layer: 2
+      momentum: 0.995
+      queue_size: 50000
+      distill: True
+      temp: 0.1
+      alpha: 0.3
+      visual_size: 500
+      hidden_size: 512
+      encoder_width: 512
+      num_skip_connected_layers: 3
+      num_attention_heads: 32
+      intermediate_size: 512
+      hidden_dropout_prob: 0.1
+      attention_probs_dropout_prob: 0.1
+      max_position_embeddings: 512
+      vocab_size: 10728
+      initializer_range: 0.02
+
+      CLASSIFIER_TYPE: "2fc"
+      CLASSIFIER_PRETRAINED: True
+      CLASSIFIER_DROPOUT: 0.1
+      CLASSIFIER_HIDDEN_SIZE: 512
+      NO_GROUNDING: True
+
+MODEL:
+  NAME: TAN
+  CHECKPOINT: ./checkpoints/ActivityNet/TAN_c3d/iter023385-0.6144-0.8593.pkl

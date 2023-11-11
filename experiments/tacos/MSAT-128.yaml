@@ -1,0 +1,83 @@
+WORKERS: 4
+
+MODEL_DIR: ./checkpoints
+RESULT_DIR: ./results
+LOG_DIR: ./log
+DATA_DIR: ./data/TACoS
+
+DATASET:
+  NAME: TACoS
+  VIS_INPUT_TYPE: c3d
+  NO_VAL: True
+  NUM_SAMPLE_CLIPS: 256
+  TARGET_STRIDE: 2
+  NORMALIZE: True
+  RANDOM_SAMPLING: False
+
+TEST:
+  BATCH_SIZE: 6
+  RECALL: 1,5
+  TIOU: 0.3,0.5,0.7
+  EVAL_TRAIN: False
+  NMS_THRESH: 0.37
+  INTERVAL: 25.0
+
+CUDNN:
+  DETERMINISTIC: False
+  BENCHMARK: True
+
+TRAIN:
+  BATCH_SIZE: 6
+  LR: 0.00005
+  WEIGHT_DECAY: 0.0000
+  MAX_EPOCH: 102
+  CONTINUE: False
+
+LOSS:
+  NAME: bce_rescale_loss
+  PARAMS:
+    W1: 0.2
+    W2: 0.5
+    W3: 50.0
+    W4: 0.1
+    W5: 0.5
+
+TAN:
+
+  FRAME_MODULE:
+    NAME: FrameAvgPool
+    PARAMS:
+      INPUT_SIZE: 4096
+      HIDDEN_SIZE: 512
+      KERNEL_SIZE: 2
+      STRIDE: 2
+
+  VL_MODULE:
+    NAME: mPLUG
+    PARAMS:
+      stride_layer: 2
+      queue_size: 50000
+      visual_size: 4096
+      momentum: 0.995
+      distill: True
+      temp: 0.1
+      alpha: 0.3
+      hidden_size: 512
+      encoder_width: 512
+      num_skip_connected_layers: 3
+      num_attention_heads: 16
+      intermediate_size: 512
+      hidden_dropout_prob: 0.1
+      attention_probs_dropout_prob: 0.1
+      max_position_embeddings: 512
+      vocab_size: 1514
+      initializer_range: 0.02
+
+      CLASSIFIER_TYPE: "2fc"
+      CLASSIFIER_PRETRAINED: True
+      CLASSIFIER_DROPOUT: 0.1
+      CLASSIFIER_HIDDEN_SIZE: 512
+
+MODEL:
+  NAME: TAN
+  CHECKPOINT: ./checkpoints/TACoS/TAN_c3d/iter079495-0.4451-0.6342.pkl
