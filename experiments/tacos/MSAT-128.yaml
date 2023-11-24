@@ -28,7 +28,7 @@ CUDNN:
 
 TRAIN:
   BATCH_SIZE: 6
-  LR: 0.00005
+  LR: 0.0001
   WEIGHT_DECAY: 0.0000
   MAX_EPOCH: 102
   CONTINUE: False
@@ -36,10 +36,10 @@ TRAIN:
 LOSS:
   NAME: bce_rescale_loss
   PARAMS:
-    W1: 0.2
+    W1: 0.5
     W2: 0.5
-    W3: 50.0
-    W4: 0.1
+    W3: 100.0
+    W4: 0.5
     W5: 0.5
 
 TAN:
@@ -80,4 +80,5 @@ TAN:
 
 MODEL:
   NAME: TAN
-  CHECKPOINT: ./checkpoints/TACoS/TAN_c3d/iter079495-0.4451-0.6342.pkl
+  CHECKPOINT:
+
