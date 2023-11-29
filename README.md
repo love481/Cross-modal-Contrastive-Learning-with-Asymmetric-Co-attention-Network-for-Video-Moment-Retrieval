@@ -1,7 +1,7 @@
 # CCL_ACB_VIDEO_MOMENT_RETRIEVAL
 Retrieve the moments(start and end timestamps) from the videos given sentence query. The paper is accepted in 2024 IEEE/CVF Winter Conference on Applications of Computer Vision Workshops (WACVW).
 We appreciate the contribution of the following [code](https://github.com/mxingzhang90/MSAT).
-The checkpoint for both datasets can be downloaded from the following [drive](https://drive.google.com/drive/folders/1WyxH4S46AKEJnOln7DxRys0QVURoVc5O?usp=sharing).
+The checkpoints for both datasets can be downloaded from the following [drive](https://drive.google.com/drive/folders/1WyxH4S46AKEJnOln7DxRys0QVURoVc5O?usp=sharing).
 
 ## Model architecture
 ![Video grounding model](Images/new_architecture_VTC_all.png)
@@ -41,7 +41,7 @@ python moment_localization/inference_tacos.py --cfg experiments/tacos/MSAT-128.y
 
 
 ## Note:
-The testing results is found to be better for activitynet captions compared to what is mentioned on the original paper. Likewise, We also updated the checkpoints for TACOS datasets.
+The testing results is found to be better for activitynet captions compared to what is mentioned on the original paper. Likewise, we also updated the checkpoint for TACOS datasets.
 
 #### TACOS
 ![tacos best log](Images/tacos_best_log.png)
