@@ -2,9 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from prettytable import PrettyTable
-import csv
 import yaml
-# import wandb
 
 def count_parameters(model):
     table = PrettyTable(["Modules", "Parameters"])
@@ -14,7 +12,7 @@ def count_parameters(model):
             continue
         param = parameter.numel()
         table.add_row([name, param])
-        train_params+=param
+        train_params += param
     print(table)
     print(f"Total Trainable Params: {train_params}")
 import _init_paths
@@ -114,15 +112,8 @@ if __name__ == '__main__':
     model = model.to(device)
     count_parameters(model)
 
-    optimizer = optim.AdamW(model.parameters(),lr=config.TRAIN.LR, betas=(0.9, 0.999), weight_decay=config.TRAIN.WEIGHT_DECAY)
-    # optimizer = optim.SGD(model.parameters(), lr=config.TRAIN.LR, momentum=0.9, weight_decay=config.TRAIN.WEIGHT_DECAY)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=config.TRAIN.FACTOR, patience=config.TRAIN.PATIENCE, verbose=config.VERBOSE)
-    if not os.path.exists("plot_folder"):
-        os.mkdir("plot_folder")
-    fw=open("plot_folder/train_loss.txt",'w')
-    fwa=open("plot_folder/loss_all.txt",'w')
-    writer = csv.writer(fw)
-    writer_all = csv.writer(fwa)
+    optimizer = optim.AdamW(model.parameters(), lr=config.TRAIN.LR, betas=(0.9, 0.999), weight_decay = config.TRAIN.WEIGHT_DECAY)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=config.TRAIN.FACTOR, patience = config.TRAIN.PATIENCE, verbose = config.VERBOSE)
 
 
 
@@ -171,8 +162,8 @@ if __name__ == '__main__':
         word_mask = sample['batch_word_mask'].cuda()
         gt_times = sample['batch_gt_times'].cuda()
 
-        logits_text, logits_visual, logits_iou, iou_mask_map,loss_itc = model(textual_input, textual_mask, word_mask, visual_input, anno_idxs,gt_times)
-        loss_value, joint_prob, iou_scores, regress = getattr(loss, config.LOSS.NAME)(config.LOSS.PARAMS, logits_text, logits_visual, logits_iou, iou_mask_map, map_gt, gt_times, word_label, word_mask,loss_itc,writer=writer)
+        logits_text, logits_visual, logits_iou, iou_mask_map,loss_itc = model(textual_input, textual_mask, word_mask, visual_input, anno_idxs, gt_times)
+        loss_value, _, iou_scores, regress = getattr(loss, config.LOSS.NAME)(config.LOSS.PARAMS, logits_text, logits_visual, logits_iou, iou_mask_map, map_gt, gt_times, word_label, word_mask,loss_itc)
 
         sorted_times = None if model.training else get_proposal_results(iou_scores, regress, duration)
         return loss_value, sorted_times
@@ -185,7 +176,7 @@ if __name__ == '__main__':
 
         for score, reg, duration in zip(scores, regress, durations):
             sorted_indexs = np.dstack(np.unravel_index(np.argsort(score.cpu().detach().numpy().ravel())[::-1], (T, T))).tolist()
-            sorted_indexs = np.array([ [reg[0,item[0],item[1]], reg[1,item[0],item[1]]] for item in sorted_indexs[0] if reg[0,item[0],item[1]] < reg[1,item[0],item[1]] ]).astype(float)
+            sorted_indexs = np.array([[reg[0,item[0],item[1]], reg[1,item[0],item[1]]] for item in sorted_indexs[0] if reg[0,item[0],item[1]] < reg[1,item[0],item[1]] ]).astype(float)
             sorted_indexs = torch.from_numpy(sorted_indexs).cuda()
             target_size = config.DATASET.NUM_SAMPLE_CLIPS // config.DATASET.TARGET_STRIDE
             out_sorted_times.append((sorted_indexs.float() / target_size * duration).tolist())
@@ -195,7 +186,6 @@ if __name__ == '__main__':
     def on_start(state):
         state['loss_meter'] = AverageMeter()
         state['test_interval'] = int(len(train_dataset)/config.TRAIN.BATCH_SIZE*config.TEST.INTERVAL)
-        #state['test_interval'] = 1
         state['t'] = 1
         model.train()
         if config.VERBOSE:
@@ -211,14 +201,15 @@ if __name__ == '__main__':
             state['progress_bar'].update(1)
        
         if state['t'] % state['test_interval'] == 0:
-            config.TEST.INTERVAL = 0.25
-            state['test_interval'] = int(len(train_dataset)/config.TRAIN.BATCH_SIZE*config.TEST.INTERVAL)
+            # how often you want to test the model based on continuous training interval, need to set to original
+            # config.TEST.INTERVAL = 0.25
+            # state['test_interval'] = int(len(train_dataset)/config.TRAIN.BATCH_SIZE*config.TEST.INTERVAL)
             model.eval()
             if config.VERBOSE:
                 state['progress_bar'].close()
-            train_l,val_l,test_l=0,0,0
+            train_l,val_l,test_l = 0,0,0
             train_l=state['loss_meter'].avg
-            loss_message = '\niter: {} train loss {:.4f}'.format(state['t'],train_l)
+            loss_message = '\niter: {} train loss {:.4f}'.format(state['t'], train_l)
             table_message = ''
             train_l
             
@@ -244,9 +235,6 @@ if __name__ == '__main__':
             test_table = eval.display_results(test_state['Rank@N,mIoU@M'], test_state['miou'],
                                               'performance on testing set')
             table_message += '\n' + test_table
-            writer_all.writerow([int(state['t']),float(train_l),float(val_l),float(test_l)])
-            fwa.flush()
-            fw.flush()
             message = loss_message+table_message+'\n'
             logger.info(message)
 
@@ -287,8 +275,7 @@ if __name__ == '__main__':
         state['loss_meter'] = AverageMeter()
         tious = [float(i) for i in config.TEST.TIOU.split(',')] if isinstance(config.TEST.TIOU,str) else [config.TEST.TIOU]
         recalls = [int(i) for i in config.TEST.RECALL.split(',')] if isinstance(config.TEST.RECALL,str) else [config.TEST.RECALL]
-        #state['sorted_segments_list'] = []
-        state['Rank@N,mIoU@M']=np.zeros((len(tious),len(recalls)))
+        state['Rank@N,mIoU@M'] = np.zeros((len(tious),len(recalls)))
         state['count'] = 0
         state['miou'] = 0
         state['annotations'] = state['iterator'].dataset.annotations
@@ -310,21 +297,15 @@ if __name__ == '__main__':
         min_idx = min(state['sample']['batch_anno_idxs'])
         batch_indexs = [idx - min_idx for idx in state['sample']['batch_anno_idxs']]
         sorted_segments = [state['output'][i] for i in batch_indexs]
-        time_segments=[state['annotations'][idx] for idx in state['sample']['batch_anno_idxs']]
+        time_segments = [state['annotations'][idx] for idx in state['sample']['batch_anno_idxs']]
         rankNM, mIou = eval.eval_predictions(sorted_segments,time_segments,verbose=False)
-        state['Rank@N,mIoU@M']+=rankNM
-        state['miou']+=mIou
-        state['count']+=1
-        #state['sorted_segments_list'].extend(sorted_segments)
+        state['Rank@N,mIoU@M'] += rankNM
+        state['miou'] += mIou
+        state['count'] += 1
 
     def on_test_end(state):
-        #annotations = state['iterator'].dataset.annotations
-        #print(len(state['sorted_segments_list'][0]))
-        #state['Rank@N,mIoU@M'], state['miou'] = eval.eval_predictions(state['sorted_segments_list'], annotations, verbose=False)
         state['Rank@N,mIoU@M']/=state['count']
         state['miou']/=state['count']
-        # print(state['Rank@N,mIoU@M'], state['miou'])
-        # exit()
         if config.VERBOSE:
             state['progress_bar'].close()
 

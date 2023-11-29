@@ -30,10 +30,6 @@ class TACoS(data.Dataset):
         self.data_dir = config.DATA_DIR
         self.split = split
 
-        # self.itos = ['PAD']
-        # self.ston = OrderedDict()
-        # self.ston['PAD'] = 0
-
         with open('./data/TACoS/words_vocab_tacos.json', 'r') as f:
             tmp = json.load(f)
             self.itos = tmp['words']
@@ -41,8 +37,6 @@ class TACoS(data.Dataset):
         for i, w in enumerate(self.itos):
             self.stoi[w] = i
         print(len(self.stoi))
-
-        # val_1.json is renamed as val.json, val_2.json is renamed as test.json
         with open(os.path.join(self.data_dir, '{}.json'.format(split)),'r') as f:
             annotations = json.load(f)
         anno_pairs = []
@@ -63,24 +57,8 @@ class TACoS(data.Dataset):
                     if len(sentence.split()) > max_sent_len:
                         max_sent_len = len(sentence.split())
 
-                    # for w in sentence.split():
-                    #     if w.lower() not in self.ston.keys():
-                    #         self.itos.append(w.lower())
-                    #         self.ston[w.lower()] = 1
-                    #     else:
-                    #         self.ston[w.lower()] += 1
-
         self.annotations = anno_pairs
         print('max_sent_len', max_sent_len)
-
-        # self.itos.extend(['UNK'])
-        # self.ston['UNK'] = 0
-        # print('total words:', len(self.itos))
-        # # ston = sorted(self.ston.items(),key = lambda x:x[1],reverse = True)
-        # # print(ston)
-        # if len(self.itos) > 1500:
-        #     with open('words_vocab.json', 'w') as f:
-        #         json.dump({'words':self.itos}, f)
 
     def __getitem__(self, index):
         video_id = self.annotations[index]['video']
@@ -104,8 +82,6 @@ class TACoS(data.Dataset):
         word_vectors = self.word_embedding(word_idxs)
 
         visual_input, visual_mask = self.get_video_features(video_id)
-
-        # visual_input = sample_to_fixed_length(visual_input, random_sampling=config.DATASET.RANDOM_SAMPLING)
         visual_input = average_to_fixed_length(visual_input)
         num_clips = config.DATASET.NUM_SAMPLE_CLIPS//config.DATASET.TARGET_STRIDE
 
@@ -122,7 +98,6 @@ class TACoS(data.Dataset):
         map_gt[1, :] = np.exp( -0.5 * np.square( (np.arange(num_clips+1)-gt_e)/(0.25*gt_length) ) )
         map_gt[1, map_gt[1, :]>=0.7] = 1.      
         map_gt[1, map_gt[1, :]<0.1353] = 0.
-        # map_gt[2, gt_s_idx:gt_e_idx] = 1.
         map_gt[2, :] = np.exp( -0.5 * np.square( (np.arange(num_clips+1)-gt_center)/(0.21233*gt_length) ) )
         map_gt[2, map_gt[2, :]>=0.78] = 1.
         map_gt[2, map_gt[2, :]<0.0625] = 0.
@@ -165,6 +140,6 @@ class TACoS(data.Dataset):
             features = torch.from_numpy(f[vid][:])
         if config.DATASET.NORMALIZE:
             features = F.normalize(features,dim=1)
-        ##4096 vector feature for each frames
+        # 4096 dim vector feature for each frames
         vis_mask = torch.ones((features.shape[0], 1))
         return features, vis_mask

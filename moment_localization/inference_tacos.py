@@ -1,4 +1,3 @@
-import argparse
 import torch
 import json
 import os
@@ -10,8 +9,6 @@ from torch import multiprocessing
 from prettytable import PrettyTable
 multiprocessing.set_sharing_strategy('file_system')
 import train
-from train import parse_args,reset_config
-#from . import train
 from core.config import config
 from datasets import average_to_fixed_length
 import models
@@ -79,14 +76,12 @@ def get_proposal_results(scores, regress, durations):
         T = scores.shape[-1]
 
         regress = regress.cpu().detach().numpy()
-
         for score, reg, duration in zip(scores, regress, durations):
             sorted_indexs = np.dstack(np.unravel_index(np.argsort(score.cpu().detach().numpy().ravel())[::-1], (T, T))).tolist()
             sorted_indexs = np.array([[reg[0,item[0],item[1]], reg[1,item[0],item[1]]] for item in sorted_indexs[0] if reg[0,item[0],item[1]] < reg[1,item[0],item[1]] and score[item[0],item[1]].cpu().detach().numpy()>0.2]).astype(float)
             sorted_indexs = torch.from_numpy(sorted_indexs).cuda()
             target_size =  config.DATASET.NUM_SAMPLE_CLIPS // config.DATASET.TARGET_STRIDE
             out_sorted_times.append((sorted_indexs.float() / target_size * duration).tolist())
-            #print(sorted_indexs.int())
         return out_sorted_times
 
 class tacos_single_data(torch.utils.data.Dataset):
@@ -108,7 +103,7 @@ class tacos_single_data(torch.utils.data.Dataset):
             self.stoi[w] = i
         self.num_clips = config.DATASET.NUM_SAMPLE_CLIPS//config.DATASET.TARGET_STRIDE
         self.annos = None
-        self._compute_annotations(video_name,sentence,gt_times,num_frame,fps)
+        self._compute_annotations(video_name, sentence, gt_times, num_frame,fps)
 
 
     def get_spec(self):
@@ -117,9 +112,9 @@ class tacos_single_data(torch.utils.data.Dataset):
         query = self._get_language_feature(anno)
         visual_input, _ = self.get_video_features(vid)
         feat = average_to_fixed_length(visual_input)
-        moment=anno['moment']
-        ## video features,input_sentence_embeddings,attentions_masks_with_paddings_only,token_masking_with_15_percent,mask_target_with_only_paddings
-        return feat, query[0], query[1], query[2],moment
+        moment = anno['moment']
+        # video features, input_sentence_embeddings, attentions_masks_with_all_1, No masking, target moment
+        return feat, query[0], query[1], query[2], moment
 
     def __len__(self):
         return len(self.annos)
@@ -152,8 +147,8 @@ class tacos_single_data(torch.utils.data.Dataset):
         # moments changed to [0,128] range
         if timestamp[0] < timestamp[1]:
             moment = torch.tensor(
-                [max(timestamp[0]/fps,0),
-                    min(timestamp[1]/fps,duration)]
+                [max(timestamp[0]/fps, 0),
+                    min(timestamp[1]/fps, duration)]
             )
         self.annos={
             'vid': video_name,
@@ -169,7 +164,7 @@ class tacos_single_data(torch.utils.data.Dataset):
 
     def get_video_features(self, vid):
         assert config.DATASET.VIS_INPUT_TYPE == 'c3d'
-        with h5py.File(os.path.join('/home/love/Documents/v_g_current/data/TACoS/', 'tall_c3d_features.hdf5'), 'r') as f:
+        with h5py.File(os.path.join('./data/TACoS/', 'tall_c3d_features.hdf5'), 'r') as f:
             features = torch.from_numpy(f[vid][:])
         if config.DATASET.NORMALIZE:
             features = F.normalize(features,dim=1)
@@ -177,16 +172,10 @@ class tacos_single_data(torch.utils.data.Dataset):
         return features, vis_mask
 
 def inference(t,n_f,vid,sen):
-    #print(vid,query)
-    # parser = argparse.ArgumentParser(description="video_inputs")
-    # parser.add_argument('video_name',help='video_name')
-    # parser.add_argument('sentence',help='sentence input')
-    # ##args.video_name define video name and args.
-    # args = parser.parse_args()
     args = train.parse_args()
     train.reset_config(config, args)
 
-    ##loading model
+    ## loading model
     model_name = config.MODEL.NAME
     model = getattr(models, model_name)()
     count_parameters(model)
@@ -195,43 +184,40 @@ def inference(t,n_f,vid,sen):
     device = ("cuda" if torch.cuda.is_available() else "cpu" )
     model = model.to(device)
     model.eval()
-    data_eg=tacos_single_data(vid,sen,t,n_f,29.4)
-    feats,inps, attention_masks,token_masks,moments=data_eg.get_spec()
-    feats=feats.unsqueeze(0).to(device)
-    inps=inps.unsqueeze(0).to(device)
-    attention_masks=attention_masks.unsqueeze(0).to(device)
-    token_masks=token_masks.unsqueeze(0).to(device)
-    _,_, logits_iou,_,_,_ = model(inps, attention_masks, token_masks, feats,None,moments)
+    data_eg = tacos_single_data(vid,sen,t,n_f,29.4)
+    feats, inps, attention_masks, token_masks, moments = data_eg.get_spec()
+    feats = feats.unsqueeze(0).to(device)
+    inps = inps.unsqueeze(0).to(device)
+    attention_masks = attention_masks.unsqueeze(0).to(device)
+    token_masks = token_masks.unsqueeze(0).to(device)
+    _, _, logits_iou, _, _ = model(inps, attention_masks, token_masks, feats,None,moments)
     T=logits_iou.shape[-1]
     idxs = torch.arange(T, device=logits_iou.device)
     s_e_idx = torch.cat((idxs[None,None,:T,None].repeat(1,1,1,T), idxs[None,None,None,:].repeat(1,1,T,1)), 1)
     regress = (s_e_idx + logits_iou[:,:2,:,:]).clone().detach()
-    #print(torch.min((moments[1]/data_eg.get_duration() *data_eg.num_clips).to(regress.device),  regress[:,1,:,:]))
-    regress[:,1,:,:]=torch.min(torch.tensor(data_eg.num_clips).float().to(regress.device),  regress[:,1,:,:])
-    regress[:,0,:,:]=torch.max(torch.tensor(0).float().to(regress.device),  regress[:,0,:,:])
-    iou_scores=torch.sigmoid(logits_iou[:,2,:,:])
-    sorted_times =get_proposal_results(iou_scores,regress,[data_eg.get_duration()])
-    Total_predicted_moments=1
-    seg = nms(sorted_times[0], thresh=config.TEST.NMS_THRESH, top_k=Total_predicted_moments)
-    if len(seg)==0:
-        seg=np.zeros([Total_predicted_moments,2]).tolist()
-    max_overlap,segment=0,list(seg[0])
-    print(moments//60 + (moments%60)/100.0,seg//60 + (seg%60)/100.0)
-    return segment
+    regress[:,1,:,:] = torch.min(torch.tensor(data_eg.num_clips).float().to(regress.device),  regress[:,1,:,:])
+    regress[:,0,:,:] = torch.max(torch.tensor(0).float().to(regress.device),  regress[:,0,:,:])
+    iou_scores = torch.sigmoid(logits_iou[:,2,:,:])
+    sorted_times = get_proposal_results(iou_scores,regress,[data_eg.get_duration()])
+    Total_predicted_moments = 1
+    seg = nms(sorted_times[0], thresh = config.TEST.NMS_THRESH, top_k=Total_predicted_moments)
+    if len(seg) == 0:
+        seg = np.zeros([Total_predicted_moments,2]).tolist()
+    print("Target: {}, Prediction: {}".format(moments//60 + (moments%60)/100.0, seg//60 + (seg%60)/100.0))
 
 def get_video_feature(vid,sentence):
-    with open('/home/love/Documents/v_g_current/data/TACoS/test.json','r') as f:
+    with open('./data/TACoS/test.json','r') as f:
         annotations = json.load(f)
-    return annotations[vid]['sentences'].index(sentence),annotations
+    return annotations[vid]['sentences'].index(sentence), annotations
     
 
 
 if __name__=='__main__':
-    vid="s28-d39.avi"
-    sen="He gets a pan, puts butter in it, and turns on the heat."
-    i,ann=get_video_feature(vid,sen)
-    t=ann[vid]['timestamps'][i]
-    n_f=ann[vid]['num_frames']
+    vid = "s28-d39.avi"
+    sen = "He gets a pan, puts butter in it, and turns on the heat."
+    i, ann = get_video_feature(vid,sen)
+    t = ann[vid]['timestamps'][i]
+    n_f = ann[vid]['num_frames']
     inference(t,n_f,vid,sen)
 
 

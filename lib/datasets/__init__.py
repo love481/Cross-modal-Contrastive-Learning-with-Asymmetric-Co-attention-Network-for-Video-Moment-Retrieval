@@ -37,7 +37,7 @@ def average_to_fixed_length(visual_input):
     num_sample_clips = config.DATASET.NUM_SAMPLE_CLIPS
     num_clips = visual_input.shape[0]
     idxs = torch.arange(0, num_sample_clips+1, 1.0)/num_sample_clips*num_clips
-    ##transform to same clip size by defineing ratios i.e 256 and averaging them
+    # transform to same clip size by defineing ratios i.e 256 and averaging them
     idxs = torch.min(torch.round(idxs).long(),torch.tensor(num_clips-1))
     new_visual_input = []
     for i in range(num_sample_clips):

@@ -1,4 +1,3 @@
-from .modeling_mplug import FusionEncoder
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -13,13 +12,13 @@ class VTC(nn.Module):
     def forward(self,text, image, alpha, idx,gt_times):
         image_embeds = self.visual_encoder(image)
         text_embeds  = self.text_encoder(text)
-        image_pos_clip=torch.zeros((image_embeds.shape[0], image_embeds.shape[2])).cuda()
+        image_pos_clip = torch.zeros((image_embeds.shape[0], image_embeds.shape[2])).cuda()
         if self.training:
             for i in range(0,image.shape[0]):
-                image_pos_clip[i,:]=torch.sum(image_embeds[i,torch.ceil(gt_times[i,0]).long():torch.ceil(gt_times[i,1]).long(),:],dim=0)
+                image_pos_clip[i,:] = torch.sum(image_embeds[i, torch.ceil(gt_times[i,0]).long():torch.ceil(gt_times[i,1]).long(),:],dim=0)
 
             image_feat = F.normalize(self.vision_proj(image_pos_clip), dim=-1)
-            text_feat = F.normalize(self.text_proj(torch.sum(text_embeds,dim=1)), dim=-1)
+            text_feat = F.normalize(self.text_proj(torch.sum(text_embeds, dim=1)), dim=-1)
 
             idx = idx.view(-1, 1)
             idx_all = torch.cat([idx.t(), self.idx_queue.clone().detach()], dim=1)
@@ -29,13 +28,13 @@ class VTC(nn.Module):
             with torch.no_grad():
                 self._momentum_update()
                 image_embeds_m = self.visual_encoder_m(image)
-                image_pos_clip_m=torch.zeros((image_embeds_m.shape[0], image_embeds_m.shape[2])).cuda()
+                image_pos_clip_m = torch.zeros((image_embeds_m.shape[0], image_embeds_m.shape[2])).cuda()
                 for i in range(0,image.shape[0]):
-                    image_pos_clip_m[i,:]=torch.sum(image_embeds_m[i,torch.ceil(gt_times[i,0]).long():torch.ceil(gt_times[i,1]).long(),:],dim=0)
+                    image_pos_clip_m[i,:] = torch.sum(image_embeds_m[i,torch.ceil(gt_times[i,0]).long():torch.ceil(gt_times[i,1]).long(),:],dim=0)
                 image_feat_m = F.normalize(self.vision_proj_m(image_pos_clip_m), dim=-1)
                 image_feat_all = torch.cat([image_feat_m.t(), self.image_queue.clone().detach()], dim=1)
                 text_output_m = self.text_encoder_m(text)
-                text_feat_m = F.normalize(self.text_proj_m(torch.sum(text_output_m,dim=1)), dim=-1)
+                text_feat_m = F.normalize(self.text_proj_m(torch.sum(text_output_m, dim=1)), dim=-1)
                 text_feat_all = torch.cat([text_feat_m.t(), self.text_queue.clone().detach()], dim=1)
 
                 if self.distill:
@@ -59,7 +58,7 @@ class VTC(nn.Module):
             self._dequeue_and_enqueue(image_feat_m, text_feat_m, idx)
         else:
             loss_itc = torch.zeros(1).cuda()
-        return  image_embeds,text_embeds,loss_itc
+        return  image_embeds, text_embeds, loss_itc
 
     def module_setting(self, config):
         self.embed_dim = config.hidden_size
@@ -110,12 +109,11 @@ class VTC(nn.Module):
 
     @torch.no_grad()
     def _dequeue_and_enqueue(self, image_feats, text_feats, idxs):
-        # gather keys before updating queue
         batch_size = image_feats.shape[0]
         ptr = int(self.queue_ptr)
 
-        ##implemented as a circular queue
-        indexx=torch.arange(ptr,ptr + batch_size)%self.queue_size
+        ## implemented as a circular queue
+        indexx = torch.arange(ptr,ptr + batch_size) % self.queue_size
         self.image_queue[:, indexx] = image_feats.T
         self.text_queue[:, indexx] = text_feats.T
         self.idx_queue[:, indexx] = idxs.T

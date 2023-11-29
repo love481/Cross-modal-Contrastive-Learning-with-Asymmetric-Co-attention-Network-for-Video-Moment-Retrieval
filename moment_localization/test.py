@@ -99,7 +99,7 @@ if __name__ == '__main__':
         gt_times = sample['batch_gt_times'].cuda()
 
         logits_text, logits_visual, logits_iou, iou_mask_map,loss_itc = model(textual_input, textual_mask, word_mask, visual_input, anno_idxs,gt_times)
-        loss_value, joint_prob, iou_scores, regress = getattr(loss, config.LOSS.NAME)(config.LOSS.PARAMS, logits_text, logits_visual, logits_iou, iou_mask_map, map_gt, gt_times, word_label, word_mask,loss_itc)
+        loss_value, _, iou_scores, regress = getattr(loss, config.LOSS.NAME)(config.LOSS.PARAMS, logits_text, logits_visual, logits_iou, iou_mask_map, map_gt, gt_times, word_label, word_mask,loss_itc)
 
         sorted_times = None if model.training else get_proposal_results(iou_scores, regress, duration)
 
@@ -126,7 +126,6 @@ if __name__ == '__main__':
         state['loss_meter'] = AverageMeter()
         tious = [float(i) for i in config.TEST.TIOU.split(',')] if isinstance(config.TEST.TIOU,str) else [config.TEST.TIOU]
         recalls = [int(i) for i in config.TEST.RECALL.split(',')] if isinstance(config.TEST.RECALL,str) else [config.TEST.RECALL]
-        #state['sorted_segments_list'] = []
         state['Rank@N,mIoU@M']=np.zeros((len(tious),len(recalls)))
         state['count'] = 0
         state['miou'] = 0
@@ -163,9 +162,6 @@ if __name__ == '__main__':
                                           'performance on testing set')
         table_message = '\n'+test_table
         print(table_message)
-
-        # save_scores(state['sorted_segments_list'], annotations, config.DATASET.NAME, args.split)
-
 
     engine = Engine()
     engine.hooks['on_test_start'] = on_test_start

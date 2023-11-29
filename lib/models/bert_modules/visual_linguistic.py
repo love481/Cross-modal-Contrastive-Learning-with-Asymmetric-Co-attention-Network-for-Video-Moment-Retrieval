@@ -4,11 +4,11 @@ import torch.nn as nn
 import numpy as np
 import math
 from .vtc import VTC
-from .modeling_mplug import BertLayerNorm,FusionEncoder
+from .modeling_mplug import BertLayerNorm, FusionEncoder
 
 class PositionalEncoding(nn.Module):
 
-    def __init__(self, d_hid, n_position=116): ## d_hid defines the size of embedding
+    def __init__(self, d_hid, n_position = 116): ## d_hid defines the size of embedding
         super(PositionalEncoding, self).__init__()
 
         # Not a parameter
@@ -16,8 +16,6 @@ class PositionalEncoding(nn.Module):
 
     def _get_sinusoid_encoding_table(self, n_position, d_hid):
         ''' Sinusoid position encoding table '''
-        # TODO: make it with torch instead of numpy
-
         def get_position_angle_vec(position):
             return [position / np.power(10000, 2 * (hid_j // 2) / d_hid) for hid_j in range(d_hid)]
 
@@ -61,7 +59,7 @@ class VisualLinguisticTranformer(BaseModel):
         # embeddings
         self.mask_embeddings = nn.Embedding(1, config.hidden_size) 
         self.word_mapping = nn.Linear(300, config.hidden_size)    # 300 is the dim of glove vector
-        self.mplug = VTC(config)
+        self.mplug = VTC(config)  # initialize the Video Text Contrastive Loss module
         self.text_embedding_LayerNorm = BertLayerNorm(config.hidden_size, eps=1e-12)
         self.text_embedding_dropout = nn.Dropout(config.hidden_dropout_prob)
         self.visual_embedding_LayerNorm = BertLayerNorm(config.hidden_size, eps=1e-12)
@@ -75,7 +73,7 @@ class VisualLinguisticTranformer(BaseModel):
             print('DATASET ERROR')
             exit()
 
-        # visual transform
+        # Skip Connected Network Containing Asymmetric co-attention Network
         self.encoder=FusionEncoder(config)
         self.visual_1x1_object = None
         if config.visual_size != config.hidden_size:
@@ -111,10 +109,10 @@ class VisualLinguisticTranformer(BaseModel):
         extended_attention_mask = (1.0 - extended_attention_mask) * -1000000.0
         visual_attention_mask = torch.zeros(( object_visual_embeddings.shape[0],1, 1, object_visual_embeddings.shape[1])).float().to(object_visual_embeddings.device)
         text_embeddings, visual_embeddings = self.embedding(text_input_feats, word_mask,object_visual_embeddings)
-        visual_embeddings,text_embeddings,loss_itc=self.mplug(text_embeddings, visual_embeddings ,self.config.alpha, anno_idxs,gt_times)
-        encoded_layers = self.encoder(text_embeddings, attention_mask =extended_attention_mask,encoder_hidden_states = visual_embeddings,encoder_attention_mask= visual_attention_mask)
-        visual_embeddings,text_embeddings = encoded_layers
-        return text_embeddings,visual_embeddings,loss_itc
+        visual_embeddings,text_embeddings,loss_itc = self.mplug(text_embeddings, visual_embeddings ,self.config.alpha, anno_idxs,gt_times)
+        encoded_layers = self.encoder(text_embeddings, attention_mask = extended_attention_mask,encoder_hidden_states = visual_embeddings, encoder_attention_mask = visual_attention_mask)
+        visual_embeddings, text_embeddings = encoded_layers
+        return text_embeddings, visual_embeddings, loss_itc
 
     def embedding(self,
                   text_input_feats,

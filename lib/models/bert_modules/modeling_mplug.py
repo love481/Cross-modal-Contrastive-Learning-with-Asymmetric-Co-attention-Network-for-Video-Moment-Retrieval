@@ -20,8 +20,6 @@ import torch
 import  torch.nn as nn
 import torch.utils.checkpoint
 from torch import nn
-import torch.nn.functional as F
-import numpy as np
 
 class BertLayerNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-12):
@@ -237,7 +235,7 @@ class FusionEncoder(nn.Module):
                 encoder_attention_mask,
                 )
 
-            ##for original skip connected network
+            # for original skip connected network
             if layer_outputs.shape[1] == (image_length+text_length):
                 encoder_hidden_states, hidden_states = torch.split(layer_outputs, (image_length, text_length), 1)
             else:

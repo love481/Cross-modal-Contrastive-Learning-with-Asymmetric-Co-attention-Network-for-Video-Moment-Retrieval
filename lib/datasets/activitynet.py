@@ -29,11 +29,6 @@ class ActivityNet(data.Dataset):
         self.vis_input_type = config.DATASET.VIS_INPUT_TYPE
         self.data_dir = config.DATA_DIR
         self.split = split
-
-        # self.itos = ['PAD']
-        # self.ston = OrderedDict()
-        # self.ston['PAD'] = 0
-
         with open('./data/ActivityNet/words_vocab_activitynet.json', 'r') as f:
             tmp = json.load(f)
             self.itos = tmp['words']
@@ -41,8 +36,6 @@ class ActivityNet(data.Dataset):
         for i, w in enumerate(self.itos):
             self.stoi[w] = i
         print(len(self.stoi))
-
-        # val_1.json is renamed as val.json, val_2.json is renamed as test.json
         with open(os.path.join(self.data_dir, '{}.json'.format(split)),'r') as f:
             annotations = json.load(f)
         anno_pairs = []
@@ -101,7 +94,6 @@ class ActivityNet(data.Dataset):
         else:
             num_clips = visual_input.shape[0]//config.DATASET.TARGET_STRIDE
             raise NotImplementedError
-            # torch.arange(0,)
 
         map_gt = np.zeros((5, num_clips+1), dtype=np.float32)
 
@@ -116,7 +108,6 @@ class ActivityNet(data.Dataset):
         map_gt[1, :] = np.exp( -0.5 * np.square( (np.arange(num_clips+1)-gt_e)/(0.25*gt_length) ) )
         map_gt[1, map_gt[1, :]>=0.6] = 1.      
         map_gt[1, map_gt[1, :]<0.1353] = 0.
-        # map_gt[2, gt_s_idx:gt_e_idx] = 1.
         map_gt[2, :] = np.exp( -0.5 * np.square( (np.arange(num_clips+1)-gt_center)/(0.21233*gt_length) ) )
         map_gt[2, map_gt[2, :]>=0.78] = 1.
         map_gt[2, map_gt[2, :]<0.0625] = 0.
