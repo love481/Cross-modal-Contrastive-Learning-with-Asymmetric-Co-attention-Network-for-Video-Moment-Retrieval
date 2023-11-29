@@ -41,7 +41,7 @@ python moment_localization/inference_tacos.py --cfg experiments/tacos/MSAT-128.y
 
 
 ## Note:
-The testing results is found to be better for acivitynet captions compared to what is mentioned on the original paper. Likewise, We also updated the checkpoints for TACOS datasets.
+The testing results is found to be better for activitynet captions compared to what is mentioned on the original paper. Likewise, We also updated the checkpoints for TACOS datasets.
 
 #### TACOS
 ![tacos best log](Images/tacos_best_log.png)
