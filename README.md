@@ -1,5 +1,5 @@
 # CCL_ACB_VIDEO_MOMENT_RETRIEVAL
-Retrieve the moments(start and end timestamps) from the videos given sentence query. The paper is accepted in 2024 IEEE/CVF Winter Conference on Applications of Computer Vision Workshops (WACVW).
+Retrieve the moments(start and end timestamps) from the videos given sentence query. The paper is accepted in 2024 IEEE/CVF Winter Conference on Applications of Computer Vision Workshops (WACVW) in the following [Link](https://openaccess.thecvf.com/content/WACV2024W/Pretrain/papers/Panta_Cross-Modal_Contrastive_Learning_With_Asymmetric_Co-Attention_Network_for_Video_Moment_WACVW_2024_paper.pdf).
 We appreciate the contribution of the following [code](https://github.com/mxingzhang90/MSAT).
 The checkpoints for both datasets can be downloaded from the following [drive](https://drive.google.com/drive/folders/1WyxH4S46AKEJnOln7DxRys0QVURoVc5O?usp=sharing).
 
